@@ -76,7 +76,8 @@ class Desk:
   robot's Pilot interface.
   """
 
-  def __init__(self, hostname: str, username: str, password: str, platform: str = 'panda') -> None:
+  def __init__(self, hostname: str, username: str, password: str, platform: str = 'panda',
+               force: bool = False) -> None:
     urllib3.disable_warnings()
     self._session = requests.Session()
     self._session.verify = False
@@ -98,7 +99,7 @@ class Desk:
       raise ValueError("Unknown platform! Must be either 'panda' or 'fr3'!")
 
     try:
-      self.take_control()
+      self.take_control(force=force)
     except ConnectionError as error:
       if 'File not found' in str(error):
         _logger.info('Legacy desk detected.')
