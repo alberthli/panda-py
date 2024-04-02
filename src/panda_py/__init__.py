@@ -327,7 +327,7 @@ class Desk:
                                       json=json,
                                       headers=headers,
                                       files=files)
-    if response.status_code != 200:
+    if response.status_code not in [200, 204]:  # 204 means success with no return value
       raise ConnectionError(response.text)
     return response
 
