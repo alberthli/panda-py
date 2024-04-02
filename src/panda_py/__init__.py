@@ -76,7 +76,8 @@ class Desk:
   robot's Pilot interface.
   """
 
-  def __init__(self, hostname: str, username: str, password: str, platform: str = 'panda') -> None:
+  def __init__(self, hostname: str, username: str, password: str, platform: str = 'panda',
+               force: bool = False) -> None:
     urllib3.disable_warnings()
     self._session = requests.Session()
     self._session.verify = False
@@ -98,7 +99,7 @@ class Desk:
       raise ValueError("Unknown platform! Must be either 'panda' or 'fr3'!")
 
     try:
-      self.take_control()
+      self.take_control(force=force)
     except ConnectionError as error:
       if 'File not found' in str(error):
         _logger.info('Legacy desk detected.')
@@ -375,3 +376,44 @@ class Desk:
     self._listening = False
     if self._listen_thread is not None:
       self._listen_thread.join()
+
+  def change_ee_properties(self, m_ee: float, F_x_Cee: typing.List[float],
+                           I_EE: typing.List[float], F_T_EE: typing.List[float]) -> None:
+    """Changes end effector properties.
+
+    For reference, the default values of the below params for the Franka gripper are
+      m_ee: 0.73
+      F_x_Cee: [-0.01, 0.0, 0.03]
+      I_EE = [
+        0.001, 0.0, 0.0,
+        0.0, 0.0025, 0.0,
+        0.0, 0.0, 0.0017,
+      ]
+      F_T_EE = [
+        0.7071, -0.7071, 0.0, 0,
+        0.7071, 0.7071, 0.0, 0,
+        0.0, 0.0, 1.0, 0,
+        0.0, 0.0, 0.1034, 1,
+      ]  # COL MAJOR!
+
+    Args:
+      m_ee: Mass of the end effector.
+      F_x_Cee: Translation from the flange frame to the center of mass of the end effector.
+      I_EE: Inertia matrix of the end effector. Note: must be 1D!
+      F_T_EE: Transformation from the flange frame to the end effector frame. Note: must be 1D, col-major!
+    """
+    if self._platform == 'panda':
+      raise NotImplementedError  # TODO(ahl): not sure what the correct API call is to set EE properties
+    elif self._platform == 'fr3':
+      self._request('put',
+                    '/admin/api/end-effector',
+                    json={
+                      'selection': 'ee-gripper',
+                      'parameters': {
+                        'mass': m_ee,
+                        'centerOfMass': F_x_Cee,
+                        'inertia': I_EE,
+                        'transformation': F_T_EE,
+                      }
+                    },
+                    headers={'X-Control-Token': self._token.token})
